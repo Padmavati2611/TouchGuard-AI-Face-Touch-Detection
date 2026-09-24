@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# TouchGuard AI - application configuration
+# ---------------------------------------------------------------------------
+# The file location is resolved in this order:
+#   1. The path passed to touchguard.config.load_settings()  (or --config)
+#   2. The TOUCHGUARD_CONFIG environment variable
+#   3. <project_root>/config/settings.yaml  (this file)
+
+camera:
+  # Lower resolution keeps the live view responsive on CPU.
+  index: 0
+  width: 640
+  height: 480
+  fps: 30
+
+face:
+  models_dir: "assets/models"
+  model: "haarcascade_frontalface_default.xml"
+  scale_factor: 1.1
+  min_neighbors: 5
+  min_face_size: 80
+  # Wide frames are downscaled to at most this width before detection.
+  max_detect_width: 640
+
+hand:
+  # MediaPipe Hand Landmarker (Tasks API) model file. Downloaded automatically
+  # on first run when missing (see scripts/download_models.py).
+  models_dir: "models"
+  model: "hand_landmarker.task"
+  num_hands: 2
+  min_detection_confidence: 0.5
+  min_presence_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+touch:
+  # Distance thresholds in PIXELS from the face rectangle (640x480 frame):
+  #   > approach_distance_threshold            -> SAFE (hand away from face)
+  #   <= approach_distance_threshold           -> HAND APPROACHING
+  #   <= touch_distance_threshold              -> FACE TOUCH DETECTED (+ voice)
+  approach_distance_threshold: 170
+  touch_distance_threshold: 90
+  # Hysteresis: the hand must travel beyond touch + release_margin (90 + 30 =
+  # 120 px) before the system re-arms for a NEW touch event. A hand hovering
+  # at the touch boundary cannot produce repeated warnings.
+  release_margin: 30
+  # Debounce: the touch must persist for this many consecutive frames before
+  # a warning fires (reduces single-frame false positives).
+  persist_frames: 3
+  # Re-arm: this many consecutive frames fully outside the release margin
+  # must pass before another warning can fire.
+  clean_frames: 3
+  # Count the wrist as a "touching" landmark (false positives otherwise).
+  use_wrist: false
+
+voice:
+  enabled: true
+  # Spoken once for every NEW face-touch event. The "{count}" placeholder is
+  # replaced with the running total, so each separate touch announces its
+  # number: "Warning. You touched your face. Touch number 1." etc.
+  main_warning: "Warning. You touched your face. Touch number {count}."
+  # Cooldown between spoken warnings (seconds). 0 (default) = no cooldown, so
+  # a quick touch -> remove -> touch is NEVER dropped silently.
+  min_interval_seconds: 0.0
+  # While the hand KEEPS touching, re-announce every this many seconds.
+  # 0 (default) = speak only once per touch event; a continuous touch never
+  # floods warnings. Set > 0 to repeat the reminder while the hand stays.
+  repeat_interval_seconds: 0.0
+  rate: 165
+  volume: 1.0
+  # fallback used when the text-to-speech engine is unavailable: beep | silent
+  fallback: "beep"
+
+ui:
+  window_title: "TouchGuard AI"
+  show_landmarks: true
+  show_fps: true
+  show_regions: true
