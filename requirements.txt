@@ -5,7 +5,7 @@
 
 # Computer vision (opencv-contrib-python matches MediaPipe's dependency and
 # includes both the OpenCV and contrib modules in a single cv2 package)
-opencv-contrib-python>=4.8.0,<4.11.0
+opencv-contrib-python-headless>=4.8.0,<4.11.0
 # mediapipe requires numpy < 2
 numpy>=1.24.0,<2.0.0
 
