@@ -394,16 +394,16 @@ the distance zones (SAFE / APPROACHING / TOUCH), debounce, release-margin
 re-arming, one-warning-per-event, touch counting, wrist toggling, pixel-space
 landmark conversion, model-missing handling, voice cooldown/fallback, and webcam
 failure handling.
-
 ## 17. Future Enhancements
 
-- Face-landmark (Mesh) blending for even more precise region zones.
-- Skin-region / mask classification to lower false positives.
-- Metric dashboards (touches per minute, daily logs to CSV/JSON).
-- A packaged executable (PyInstaller) and optional web dashboard.
-- Multi-camera and multi-person support.
+- Face-landmark blending for more precise face-region detection.
+- Skin-region or mask classification to reduce false positives.
+- Touch analytics such as touches per minute and daily reports.
+- CSV/JSON-based historical touch logs.
+- Packaged desktop executable using PyInstaller.
+- Multi-camera support.
+- Multi-person support.
 - Automatic distance calibration for different webcam resolutions.
-
 ## 18. Limitations
 
 - **Single user, single camera** — designed for one face in front of the webcam.
