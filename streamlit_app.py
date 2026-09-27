@@ -7,6 +7,10 @@ from touchguard.pipeline import TouchGuardPipeline
 from touchguard.config import load_settings
 
 
+# ---------------------------------------------------------
+# PAGE CONFIGURATION
+# ---------------------------------------------------------
+
 st.set_page_config(
     page_title="TouchGuard AI",
     page_icon="🛡️",
@@ -14,8 +18,15 @@ st.set_page_config(
 )
 
 
+# ---------------------------------------------------------
+# TITLE
+# ---------------------------------------------------------
+
 st.title("🛡️ TouchGuard AI")
-st.subheader("Real-Time Face-Touch Detection & Voice Warning System")
+
+st.subheader(
+    "Real-Time Face-Touch Detection & Voice Warning System"
+)
 
 st.write(
     "Place your hand near your face. "
@@ -24,9 +35,14 @@ st.write(
 )
 
 
+# ---------------------------------------------------------
+# SHARED TOUCHGUARD STATE
+# ---------------------------------------------------------
+
 class TouchGuardState:
 
     def __init__(self):
+
         self.lock = threading.Lock()
 
         self.touch_count = 0
@@ -44,13 +60,17 @@ class TouchGuardState:
         with self.lock:
 
             self.touch_count = analysis.touch_count
+
             self.warning_count = analysis.warning_count
+
             self.touching = analysis.touching
 
             self.faces = len(analysis.faces)
+
             self.hands = len(analysis.hands)
 
             self.distance = analysis.distance
+
             self.fps = analysis.fps
 
     def get(self):
@@ -68,12 +88,21 @@ class TouchGuardState:
             }
 
 
+# ---------------------------------------------------------
+# CREATE STATE
+# ---------------------------------------------------------
+
 if "touchguard_state" not in st.session_state:
+
     st.session_state.touchguard_state = TouchGuardState()
 
 
 state = st.session_state.touchguard_state
 
+
+# ---------------------------------------------------------
+# VIDEO PROCESSOR
+# ---------------------------------------------------------
 
 class TouchGuardProcessor(VideoProcessorBase):
 
@@ -118,8 +147,11 @@ class TouchGuardProcessor(VideoProcessorBase):
     def __del__(self):
 
         try:
+
             self.pipeline.close()
+
         except Exception:
+
             pass
 
 
@@ -137,8 +169,12 @@ ctx = webrtc_streamer(
 
     media_stream_constraints={
         "video": {
-            "width": {"ideal": 640},
-            "height": {"ideal": 480}
+            "width": {
+                "ideal": 640
+            },
+            "height": {
+                "ideal": 480
+            }
         },
         "audio": False,
     },
@@ -152,76 +188,97 @@ ctx = webrtc_streamer(
 # ---------------------------------------------------------
 
 st.markdown("---")
+
 st.markdown("### 📊 TouchGuard Dashboard")
 
 
-@st.fragment(run_every="1s")
-def dashboard():
-
-    data = state.get()
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Face Touches",
-            data["touch_count"]
-        )
-
-    with col2:
-        st.metric(
-            "Warnings",
-            data["warning_count"]
-        )
-
-    with col3:
-        st.metric(
-            "Faces Detected",
-            data["faces"]
-        )
-
-    with col4:
-        st.metric(
-            "Hands Detected",
-            data["hands"]
-        )
+data = state.get()
 
 
-    if data["touching"]:
+# ---------------------------------------------------------
+# MAIN METRICS
+# ---------------------------------------------------------
 
-        st.error(
-            "⚠️ FACE TOUCH DETECTED"
-        )
-
-    else:
-
-        st.success(
-            "✅ No Face Touch Detected"
-        )
+col1, col2, col3, col4 = st.columns(4)
 
 
-    col5, col6 = st.columns(2)
+with col1:
 
-    with col5:
-
-        st.metric(
-            "Hand-Face Distance",
-            f"{data['distance']:.1f} px"
-        )
-
-    with col6:
-
-        st.metric(
-            "Processing FPS",
-            f"{data['fps']:.1f}"
-        )
+    st.metric(
+        "Face Touches",
+        data["touch_count"]
+    )
 
 
-dashboard()
+with col2:
 
+    st.metric(
+        "Warnings",
+        data["warning_count"]
+    )
+
+
+with col3:
+
+    st.metric(
+        "Faces Detected",
+        data["faces"]
+    )
+
+
+with col4:
+
+    st.metric(
+        "Hands Detected",
+        data["hands"]
+    )
+
+
+# ---------------------------------------------------------
+# TOUCH STATUS
+# ---------------------------------------------------------
+
+if data["touching"]:
+
+    st.error(
+        "⚠️ FACE TOUCH DETECTED"
+    )
+
+else:
+
+    st.success(
+        "✅ No Face Touch Detected"
+    )
+
+
+# ---------------------------------------------------------
+# ADDITIONAL METRICS
+# ---------------------------------------------------------
+
+col5, col6 = st.columns(2)
+
+
+with col5:
+
+    st.metric(
+        "Hand-Face Distance",
+        f"{data['distance']:.1f} px"
+    )
+
+
+with col6:
+
+    st.metric(
+        "Processing FPS",
+        f"{data['fps']:.1f}"
+    )
+
+
+# ---------------------------------------------------------
+# INFORMATION
+# ---------------------------------------------------------
 
 st.markdown("---")
-
 
 st.info(
     "💡 Tip: Keep your face and hand clearly visible "
