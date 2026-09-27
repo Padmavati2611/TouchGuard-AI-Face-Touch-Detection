@@ -1,8 +1,7 @@
+```python
 import streamlit as st
-import cv2
 import threading
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
-from streamlit_autorefresh import st_autorefresh
 
 from touchguard.pipeline import TouchGuardPipeline
 from touchguard.config import load_settings
@@ -70,18 +69,10 @@ class TouchGuardState:
 
 
 if "touchguard_state" not in st.session_state:
-
     st.session_state.touchguard_state = TouchGuardState()
 
 
 state = st.session_state.touchguard_state
-
-
-# Refresh dashboard every second
-st_autorefresh(
-    interval=1000,
-    key="touchguard_dashboard_refresh"
-)
 
 
 class TouchGuardProcessor(VideoProcessorBase):
@@ -127,16 +118,16 @@ class TouchGuardProcessor(VideoProcessorBase):
     def __del__(self):
 
         try:
-
             self.pipeline.close()
-
         except Exception:
-
             pass
 
 
-st.markdown("### 📷 Live Camera")
+# ---------------------------------------------------------
+# LIVE CAMERA
+# ---------------------------------------------------------
 
+st.markdown("### 📷 Live Camera")
 
 ctx = webrtc_streamer(
 
@@ -156,80 +147,77 @@ ctx = webrtc_streamer(
 )
 
 
+# ---------------------------------------------------------
+# DASHBOARD
+# ---------------------------------------------------------
+
 st.markdown("---")
-
-
 st.markdown("### 📊 TouchGuard Dashboard")
 
 
-data = state.get()
+@st.fragment(run_every="1s")
+def dashboard():
+
+    data = state.get()
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Face Touches",
+            data["touch_count"]
+        )
+
+    with col2:
+        st.metric(
+            "Warnings",
+            data["warning_count"]
+        )
+
+    with col3:
+        st.metric(
+            "Faces Detected",
+            data["faces"]
+        )
+
+    with col4:
+        st.metric(
+            "Hands Detected",
+            data["hands"]
+        )
 
 
-col1, col2, col3, col4 = st.columns(4)
+    if data["touching"]:
+
+        st.error(
+            "⚠️ FACE TOUCH DETECTED"
+        )
+
+    else:
+
+        st.success(
+            "✅ No Face Touch Detected"
+        )
 
 
-with col1:
+    col5, col6 = st.columns(2)
 
-    st.metric(
-        "Face Touches",
-        data["touch_count"]
-    )
+    with col5:
 
+        st.metric(
+            "Hand-Face Distance",
+            f"{data['distance']:.1f} px"
+        )
 
-with col2:
+    with col6:
 
-    st.metric(
-        "Warnings",
-        data["warning_count"]
-    )
-
-
-with col3:
-
-    st.metric(
-        "Faces Detected",
-        data["faces"]
-    )
+        st.metric(
+            "Processing FPS",
+            f"{data['fps']:.1f}"
+        )
 
 
-with col4:
-
-    st.metric(
-        "Hands Detected",
-        data["hands"]
-    )
-
-
-if data["touching"]:
-
-    st.error(
-        "⚠️ FACE TOUCH DETECTED"
-    )
-
-else:
-
-    st.success(
-        "✅ No Face Touch Detected"
-    )
-
-
-col5, col6 = st.columns(2)
-
-
-with col5:
-
-    st.metric(
-        "Hand-Face Distance",
-        f"{data['distance']:.1f} px"
-    )
-
-
-with col6:
-
-    st.metric(
-        "Processing FPS",
-        f"{data['fps']:.1f}"
-    )
+dashboard()
 
 
 st.markdown("---")
@@ -240,3 +228,4 @@ st.info(
     "to the camera. Each confirmed touch is counted "
     "by the system."
 )
+```
