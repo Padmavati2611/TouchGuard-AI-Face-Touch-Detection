@@ -415,16 +415,6 @@ failure handling.
 - **Not medical-grade** — treat results as a behavioural reminder aid.
 - **Voice platform notes** — pyttsx3 needs the OS speech engine (present by
   default on Windows). Otherwise a beep is used.
-
 ## 19. Author
 
-**TouchGuard AI Team** — built for learning and demonstrating real-time
-computer-vision / ML concepts (object detection, landmark tracking, event state
-machines, threaded audio).
-
-License: MIT.
-
----
-
-*Built with OpenCV, MediaPipe Hand Landmarker, and pyttsx3. Private by design:
-all processing stays on your computer.*
+**TouchGuard AI Team** — built for learning and demonstrating real-time computer-vision / ML concepts
