@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import threading
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
@@ -285,4 +284,4 @@ st.info(
     "to the camera. Each confirmed touch is counted "
     "by the system."
 )
-```
+
