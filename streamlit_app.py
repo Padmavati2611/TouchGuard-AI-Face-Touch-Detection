@@ -1,14 +1,15 @@
 import streamlit as st
 import threading
+
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
 from touchguard.pipeline import TouchGuardPipeline
 from touchguard.config import load_settings
 
 
-# ---------------------------------------------------------
+# =========================================================
 # PAGE CONFIGURATION
-# ---------------------------------------------------------
+# =========================================================
 
 st.set_page_config(
     page_title="TouchGuard AI",
@@ -17,9 +18,9 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # TITLE
-# ---------------------------------------------------------
+# =========================================================
 
 st.title("🛡️ TouchGuard AI")
 
@@ -34,17 +35,19 @@ st.write(
 )
 
 
-# ---------------------------------------------------------
-# SHARED STATE
-# ---------------------------------------------------------
+# =========================================================
+# SHARED TOUCHGUARD STATE
+# =========================================================
 
 class TouchGuardState:
 
     def __init__(self):
+
         self.lock = threading.Lock()
 
         self.touch_count = 0
         self.warning_count = 0
+
         self.touching = False
 
         self.faces = 0
@@ -83,9 +86,9 @@ class TouchGuardState:
             }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CREATE SESSION STATE
-# ---------------------------------------------------------
+# =========================================================
 
 if "touchguard_state" not in st.session_state:
 
@@ -95,9 +98,9 @@ if "touchguard_state" not in st.session_state:
 state = st.session_state.touchguard_state
 
 
-# ---------------------------------------------------------
+# =========================================================
 # VIDEO PROCESSOR
-# ---------------------------------------------------------
+# =========================================================
 
 class TouchGuardProcessor(VideoProcessorBase):
 
@@ -111,17 +114,17 @@ class TouchGuardProcessor(VideoProcessorBase):
 
     def recv(self, frame):
 
-        # Convert WebRTC frame to OpenCV format
+        # Convert WebRTC frame to OpenCV image
         img = frame.to_ndarray(
             format="bgr24"
         )
 
         try:
 
-            # Process frame
+            # Run TouchGuard processing
             analysis = self.pipeline.process(img)
 
-            # Update dashboard values
+            # Send results to dashboard
             state.update(analysis)
 
             # Get processed frame
@@ -133,10 +136,9 @@ class TouchGuardProcessor(VideoProcessorBase):
                 format="bgr24"
             )
 
-        except Exception:
+        except Exception as e:
 
-            # If processing fails,
-            # return original camera frame
+            # Keep camera alive even if one frame fails
             return frame.from_ndarray(
                 img,
                 format="bgr24"
@@ -153,14 +155,14 @@ class TouchGuardProcessor(VideoProcessorBase):
             pass
 
 
-# ---------------------------------------------------------
-# CAMERA
-# ---------------------------------------------------------
+# =========================================================
+# LIVE CAMERA
+# =========================================================
 
 st.markdown("### 📷 Live Camera")
 
 st.info(
-    "Click START below and allow camera permission "
+    "Click START and allow camera permission "
     "when your browser asks."
 )
 
@@ -200,96 +202,98 @@ ctx = webrtc_streamer(
 )
 
 
-# ---------------------------------------------------------
-# DASHBOARD
-# ---------------------------------------------------------
+# =========================================================
+# LIVE DASHBOARD
+# =========================================================
 
 st.markdown("---")
 
-st.markdown("### 📊 TouchGuard Dashboard")
 
-data = state.get()
+@st.fragment(run_every="1s")
+def live_dashboard():
 
+    st.markdown("### 📊 Live TouchGuard Dashboard")
 
-# First row
-col1, col2, col3, col4 = st.columns(4)
+    data = state.get()
 
+    # -----------------------------------------------------
+    # FIRST ROW
+    # -----------------------------------------------------
 
-with col1:
+    col1, col2, col3, col4 = st.columns(4)
 
-    st.metric(
-        "Face Touches",
-        data["touch_count"]
-    )
+    with col1:
 
+        st.metric(
+            "Face Touches",
+            data["touch_count"]
+        )
 
-with col2:
+    with col2:
 
-    st.metric(
-        "Warnings",
-        data["warning_count"]
-    )
+        st.metric(
+            "Warnings",
+            data["warning_count"]
+        )
 
+    with col3:
 
-with col3:
+        st.metric(
+            "Faces Detected",
+            data["faces"]
+        )
 
-    st.metric(
-        "Faces Detected",
-        data["faces"]
-    )
+    with col4:
 
+        st.metric(
+            "Hands Detected",
+            data["hands"]
+        )
 
-with col4:
+    # -----------------------------------------------------
+    # TOUCH STATUS
+    # -----------------------------------------------------
 
-    st.metric(
-        "Hands Detected",
-        data["hands"]
-    )
+    if data["touching"]:
 
+        st.error(
+            "⚠️ FACE TOUCH DETECTED"
+        )
 
-# ---------------------------------------------------------
-# TOUCH STATUS
-# ---------------------------------------------------------
+    else:
 
-if data["touching"]:
+        st.success(
+            "✅ No Face Touch Detected"
+        )
 
-    st.error(
-        "⚠️ FACE TOUCH DETECTED"
-    )
+    # -----------------------------------------------------
+    # SECOND ROW
+    # -----------------------------------------------------
 
-else:
+    col5, col6 = st.columns(2)
 
-    st.success(
-        "✅ No Face Touch Detected"
-    )
+    with col5:
 
+        st.metric(
+            "Hand-Face Distance",
+            f"{data['distance']:.1f} px"
+        )
 
-# ---------------------------------------------------------
-# SECOND ROW
-# ---------------------------------------------------------
+    with col6:
 
-col5, col6 = st.columns(2)
-
-
-with col5:
-
-    st.metric(
-        "Hand-Face Distance",
-        f"{data['distance']:.1f} px"
-    )
-
-
-with col6:
-
-    st.metric(
-        "Processing FPS",
-        f"{data['fps']:.1f}"
-    )
+        st.metric(
+            "Processing FPS",
+            f"{data['fps']:.1f}"
+        )
 
 
-# ---------------------------------------------------------
+# Start dashboard
+live_dashboard()
+
+
+# =========================================================
 # INFORMATION
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown("---")
 
@@ -300,9 +304,9 @@ st.info(
 )
 
 
-# ---------------------------------------------------------
-# DEPLOYMENT INFORMATION
-# ---------------------------------------------------------
+# =========================================================
+# PROJECT FOOTER
+# =========================================================
 
 st.markdown("---")
 
