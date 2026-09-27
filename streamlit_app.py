@@ -159,72 +159,68 @@ ctx = webrtc_streamer(
 
 st.markdown("---")
 
+st.markdown("### 📊 TouchGuard Dashboard")
 
-@st.fragment(run_every="1s")
-def live_dashboard():
+data = state.get()
 
-    st.markdown("### 📊 Live TouchGuard Dashboard")
+col1, col2, col3, col4 = st.columns(4)
 
-    data = state.get()
+with col1:
+    st.metric(
+        "Face Touches",
+        data["touch_count"]
+    )
 
-    col1, col2, col3, col4 = st.columns(4)
+with col2:
+    st.metric(
+        "Warnings",
+        data["warning_count"]
+    )
 
-    with col1:
-        st.metric(
-            "Face Touches",
-            data["touch_count"]
-        )
+with col3:
+    st.metric(
+        "Faces Detected",
+        data["faces"]
+    )
 
-    with col2:
-        st.metric(
-            "Warnings",
-            data["warning_count"]
-        )
-
-    with col3:
-        st.metric(
-            "Faces Detected",
-            data["faces"]
-        )
-
-    with col4:
-        st.metric(
-            "Hands Detected",
-            data["hands"]
-        )
-
-    if data["touching"]:
-
-        st.error(
-            "⚠️ FACE TOUCH DETECTED"
-        )
-
-    else:
-
-        st.success(
-            "✅ No Face Touch Detected"
-        )
-
-    col5, col6 = st.columns(2)
-
-    with col5:
-        st.metric(
-            "Hand-Face Distance",
-            f"{data['distance']:.1f} px"
-        )
-
-    with col6:
-        st.metric(
-            "Processing FPS",
-            f"{data['fps']:.1f}"
-        )
+with col4:
+    st.metric(
+        "Hands Detected",
+        data["hands"]
+    )
 
 
-live_dashboard()
+if data["touching"]:
+
+    st.error(
+        "⚠️ FACE TOUCH DETECTED"
+    )
+
+else:
+
+    st.success(
+        "✅ No Face Touch Detected"
+    )
+
+
+col5, col6 = st.columns(2)
+
+with col5:
+
+    st.metric(
+        "Hand-Face Distance",
+        f"{data['distance']:.1f} px"
+    )
+
+with col6:
+
+    st.metric(
+        "Processing FPS",
+        f"{data['fps']:.1f}"
+    )
 
 
 st.markdown("---")
-
 
 st.info(
     "💡 Tip: Keep your face and hand clearly visible "
