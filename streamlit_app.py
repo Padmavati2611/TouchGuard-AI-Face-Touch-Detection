@@ -5,283 +5,250 @@ from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 from touchguard.pipeline import TouchGuardPipeline
 from touchguard.config import load_settings
 
-
-# ---------------------------------------------------------
-# PAGE CONFIGURATION
-# ---------------------------------------------------------
-
 st.set_page_config(
-    page_title="TouchGuard AI",
-    page_icon="🛡️",
-    layout="wide"
+page_title="TouchGuard AI",
+page_icon="🛡️",
+layout="wide"
 )
-
-
-# ---------------------------------------------------------
-# TITLE
-# ---------------------------------------------------------
 
 st.title("🛡️ TouchGuard AI")
 
 st.subheader(
-    "Real-Time Face-Touch Detection & Voice Warning System"
+"Real-Time Face-Touch Detection & Voice Warning System"
 )
 
 st.write(
-    "Place your hand near your face. "
-    "TouchGuard AI detects face-touch activity "
-    "and counts each confirmed touch."
+"Place your hand near your face. "
+"TouchGuard AI detects face-touch activity "
+"and counts each confirmed touch."
 )
-
-
-# ---------------------------------------------------------
-# SHARED TOUCHGUARD STATE
-# ---------------------------------------------------------
 
 class TouchGuardState:
 
-    def __init__(self):
+```
+def __init__(self):
 
-        self.lock = threading.Lock()
+    self.lock = threading.Lock()
 
-        self.touch_count = 0
-        self.warning_count = 0
-        self.touching = False
+    self.touch_count = 0
+    self.warning_count = 0
+    self.touching = False
 
-        self.faces = 0
-        self.hands = 0
+    self.faces = 0
+    self.hands = 0
 
-        self.distance = 0.0
-        self.fps = 0.0
+    self.distance = 0.0
+    self.fps = 0.0
 
-    def update(self, analysis):
+def update(self, analysis):
 
-        with self.lock:
+    with self.lock:
 
-            self.touch_count = analysis.touch_count
+        self.touch_count = analysis.touch_count
+        self.warning_count = analysis.warning_count
+        self.touching = analysis.touching
 
-            self.warning_count = analysis.warning_count
+        self.faces = len(analysis.faces)
+        self.hands = len(analysis.hands)
 
-            self.touching = analysis.touching
+        self.distance = analysis.distance
+        self.fps = analysis.fps
 
-            self.faces = len(analysis.faces)
+def get(self):
 
-            self.hands = len(analysis.hands)
+    with self.lock:
 
-            self.distance = analysis.distance
-
-            self.fps = analysis.fps
-
-    def get(self):
-
-        with self.lock:
-
-            return {
-                "touch_count": self.touch_count,
-                "warning_count": self.warning_count,
-                "touching": self.touching,
-                "faces": self.faces,
-                "hands": self.hands,
-                "distance": self.distance,
-                "fps": self.fps,
-            }
-
-
-# ---------------------------------------------------------
-# CREATE STATE
-# ---------------------------------------------------------
+        return {
+            "touch_count": self.touch_count,
+            "warning_count": self.warning_count,
+            "touching": self.touching,
+            "faces": self.faces,
+            "hands": self.hands,
+            "distance": self.distance,
+            "fps": self.fps,
+        }
+```
 
 if "touchguard_state" not in st.session_state:
 
-    st.session_state.touchguard_state = TouchGuardState()
-
+```
+st.session_state.touchguard_state = TouchGuardState()
+```
 
 state = st.session_state.touchguard_state
 
-
-# ---------------------------------------------------------
-# VIDEO PROCESSOR
-# ---------------------------------------------------------
-
 class TouchGuardProcessor(VideoProcessorBase):
 
-    def __init__(self):
+```
+def __init__(self):
 
-        self.settings = load_settings()
+    self.settings = load_settings()
 
-        self.pipeline = TouchGuardPipeline(
-            self.settings
+    self.pipeline = TouchGuardPipeline(
+        self.settings
+    )
+
+def recv(self, frame):
+
+    img = frame.to_ndarray(
+        format="bgr24"
+    )
+
+    try:
+
+        analysis = self.pipeline.process(
+            img
         )
 
-    def recv(self, frame):
+        state.update(
+            analysis
+        )
 
-        img = frame.to_ndarray(
+        output = analysis.frame
+
+        return frame.from_ndarray(
+            output,
             format="bgr24"
         )
 
-        try:
+    except Exception:
 
-            analysis = self.pipeline.process(
-                img
-            )
+        return frame.from_ndarray(
+            img,
+            format="bgr24"
+        )
 
-            state.update(
-                analysis
-            )
+def __del__(self):
 
-            output = analysis.frame
+    try:
 
-            return frame.from_ndarray(
-                output,
-                format="bgr24"
-            )
+        self.pipeline.close()
 
-        except Exception:
+    except Exception:
 
-            return frame.from_ndarray(
-                img,
-                format="bgr24"
-            )
-
-    def __del__(self):
-
-        try:
-
-            self.pipeline.close()
-
-        except Exception:
-
-            pass
-
-
-# ---------------------------------------------------------
-# LIVE CAMERA
-# ---------------------------------------------------------
+        pass
+```
 
 st.markdown("### 📷 Live Camera")
 
 ctx = webrtc_streamer(
 
-    key="touchguard-camera",
+```
+key="touchguard-camera",
 
-    video_processor_factory=TouchGuardProcessor,
+video_processor_factory=TouchGuardProcessor,
 
-    media_stream_constraints={
-        "video": {
-            "width": {
-                "ideal": 640
-            },
-            "height": {
-                "ideal": 480
-            }
+media_stream_constraints={
+    "video": {
+        "width": {
+            "ideal": 640
         },
-        "audio": False,
+        "height": {
+            "ideal": 480
+        }
     },
+    "audio": False,
+},
 
-    async_processing=True,
+rtc_configuration={
+    "iceServers": [
+        {
+            "urls": [
+                "stun:stun.l.google.com:19302"
+            ]
+        }
+    ]
+},
+
+async_processing=True,
+```
+
 )
-
-
-# ---------------------------------------------------------
-# DASHBOARD
-# ---------------------------------------------------------
 
 st.markdown("---")
 
 st.markdown("### 📊 TouchGuard Dashboard")
 
-
 data = state.get()
-
-
-# ---------------------------------------------------------
-# MAIN METRICS
-# ---------------------------------------------------------
 
 col1, col2, col3, col4 = st.columns(4)
 
-
 with col1:
 
-    st.metric(
-        "Face Touches",
-        data["touch_count"]
-    )
-
+```
+st.metric(
+    "Face Touches",
+    data["touch_count"]
+)
+```
 
 with col2:
 
-    st.metric(
-        "Warnings",
-        data["warning_count"]
-    )
-
+```
+st.metric(
+    "Warnings",
+    data["warning_count"]
+)
+```
 
 with col3:
 
-    st.metric(
-        "Faces Detected",
-        data["faces"]
-    )
-
+```
+st.metric(
+    "Faces Detected",
+    data["faces"]
+)
+```
 
 with col4:
 
-    st.metric(
-        "Hands Detected",
-        data["hands"]
-    )
-
-
-# ---------------------------------------------------------
-# TOUCH STATUS
-# ---------------------------------------------------------
+```
+st.metric(
+    "Hands Detected",
+    data["hands"]
+)
+```
 
 if data["touching"]:
 
-    st.error(
-        "⚠️ FACE TOUCH DETECTED"
-    )
+```
+st.error(
+    "⚠️ FACE TOUCH DETECTED"
+)
+```
 
 else:
 
-    st.success(
-        "✅ No Face Touch Detected"
-    )
-
-
-# ---------------------------------------------------------
-# ADDITIONAL METRICS
-# ---------------------------------------------------------
+```
+st.success(
+    "✅ No Face Touch Detected"
+)
+```
 
 col5, col6 = st.columns(2)
 
-
 with col5:
 
-    st.metric(
-        "Hand-Face Distance",
-        f"{data['distance']:.1f} px"
-    )
-
+```
+st.metric(
+    "Hand-Face Distance",
+    f"{data['distance']:.1f} px"
+)
+```
 
 with col6:
 
-    st.metric(
-        "Processing FPS",
-        f"{data['fps']:.1f}"
-    )
-
-
-# ---------------------------------------------------------
-# INFORMATION
-# ---------------------------------------------------------
+```
+st.metric(
+    "Processing FPS",
+    f"{data['fps']:.1f}"
+)
+```
 
 st.markdown("---")
 
 st.info(
-    "💡 Tip: Keep your face and hand clearly visible "
-    "to the camera. Each confirmed touch is counted "
-    "by the system."
+"💡 Tip: Keep your face and hand clearly visible "
+"to the camera. Each confirmed touch is counted "
+"by the system."
 )
-
