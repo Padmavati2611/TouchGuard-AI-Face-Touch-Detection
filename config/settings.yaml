@@ -1,0 +1,60 @@
+
+# ---------------------------------------------------------------------------
+# TouchGuard AI - application configuration
+# ---------------------------------------------------------------------------
+
+camera:
+  index: 0
+  width: 640
+  height: 480
+  fps: 30
+
+face:
+  models_dir: "assets/models"
+  model: "haarcascade_frontalface_default.xml"
+  scale_factor: 1.1
+  min_neighbors: 5
+  min_face_size: 80
+  max_detect_width: 640
+
+hand:
+  models_dir: "models"
+  model: "hand_landmarker.task"
+  num_hands: 2
+  min_detection_confidence: 0.5
+  min_presence_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+touch:
+  # Hand-to-face distance thresholds in pixels
+  approach_distance_threshold: 170
+  touch_distance_threshold: 90
+  release_margin: 30
+  persist_frames: 3
+  clean_frames: 3
+  use_wrist: false
+
+voice:
+  enabled: true
+
+  # Spoken warning whenever a face-touch event is detected
+  main_warning: "Don't touch your face!"
+
+  # Allow a warning for each new detected touch
+  min_interval_seconds: 0.0
+
+  # Repeat the spoken warning every 2 seconds during a continuous touch
+  repeat_interval_seconds: 2.0
+
+  # Voice settings
+  rate: 165
+  volume: 1.0
+
+  # Use a beep if speech is unavailable
+  fallback: "beep"
+
+ui:
+  window_title: "TouchGuard AI"
+  show_landmarks: true
+  show_fps: true
+  show_regions: true
