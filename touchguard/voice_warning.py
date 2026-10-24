@@ -1,13 +1,15 @@
+
 """Windows voice warning service for TouchGuard AI."""
 
 from __future__ import annotations
 
+import base64
 import logging
+import os
 import queue
 import subprocess
 import threading
 import time
-from typing import Any, Callable
 
 from touchguard.config import VoiceConfig
 
@@ -15,40 +17,35 @@ logger = logging.getLogger(__name__)
 
 
 class VoiceWarningService:
-    """Voice warning service using Windows PowerShell SpeechSynthesizer."""
+    """Speak warning messages using Windows PowerShell."""
 
     def __init__(
         self,
         voice_config: VoiceConfig | None = None,
-        engine_factory: Callable[[], Any] | None = None,
+        engine_factory=None,
         start_worker: bool = True,
     ):
         self._config = voice_config or VoiceConfig()
-
         self._enabled = bool(self._config.enabled)
         self._min_interval = max(
             0.0,
             float(self._config.min_interval_seconds),
         )
-
         self._message = self._config.main_warning
-
         self._mode = "windows-speech"
         self._init_error = None
 
         self._queue = queue.Queue()
         self._stop_event = threading.Event()
         self._worker = None
-
         self._lock = threading.Lock()
         self._last_warn_time = 0.0
-
         self.warning_count = 0
 
         if start_worker:
             self._start_worker()
 
-        logger.info("Windows speech warning service initialized.")
+        logger.info("Windows voice warning service initialized.")
 
     def _start_worker(self):
         self._worker = threading.Thread(
@@ -65,10 +62,12 @@ class VoiceWarningService:
             except queue.Empty:
                 continue
 
-            if job is None:
-                break
-
-            self._deliver(job)
+            try:
+                if job is None:
+                    break
+                self._deliver(job)
+            finally:
+                self._queue.task_done()
 
     def _deliver(self, job):
         kind, message = job
@@ -77,21 +76,44 @@ class VoiceWarningService:
             return
 
         try:
-            # Use a temporary PowerShell script so that quotation
-            # marks in the warning message cannot break the command.
+            powershell = os.path.join(
+                os.environ.get("WINDIR", r"C:\Windows"),
+                "System32",
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe",
+            )
+
+            if not os.path.isfile(powershell):
+                raise FileNotFoundError(
+                    f"PowerShell not found: {powershell}"
+                )
+
+            encoded_message = base64.b64encode(
+                str(message).encode("utf-16le")
+            ).decode("ascii")
+
             ps_script = f"""
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Speech
+$bytes = [Convert]::FromBase64String('{encoded_message}')
+$text = [Text.Encoding]::Unicode.GetString($bytes)
 $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$s.Volume = 100
-$s.Rate = 0
-$s.Speak("{str(message).replace('"', '`"')}")
-$s.Dispose()
+try {{
+    $s.Volume = 100
+    $s.Rate = 0
+    $s.Speak($text)
+}}
+finally {{
+    $s.Dispose()
+}}
 """
 
-            subprocess.run(
+            result = subprocess.run(
                 [
-                    "powershell.exe",
+                    powershell,
                     "-NoProfile",
+                    "-NonInteractive",
                     "-ExecutionPolicy",
                     "Bypass",
                     "-Command",
@@ -101,13 +123,22 @@ $s.Dispose()
                 stderr=subprocess.PIPE,
                 text=True,
                 check=False,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=getattr(
+                    subprocess, "CREATE_NO_WINDOW", 0
+                ),
+                timeout=30,
             )
+
+            if result.returncode != 0:
+                raise RuntimeError(
+                    result.stderr.strip()
+                    or f"PowerShell exited with code {result.returncode}"
+                )
 
             logger.info("Spoken warning: %s", message)
 
-        except Exception as exc:
-            logger.error("Windows speech failed: %s", exc)
+        except Exception:
+            logger.exception("Windows speech failed.")
             self._beep()
 
     @staticmethod
@@ -116,7 +147,7 @@ $s.Dispose()
             import winsound
             winsound.Beep(880, 250)
         except Exception:
-            pass
+            logger.exception("Warning beep failed.")
 
     @property
     def enabled(self):
@@ -132,31 +163,25 @@ $s.Dispose()
 
     @property
     def cooldown_remaining(self):
-        now = time.monotonic()
-
         remaining = self._min_interval - (
-            now - self._last_warn_time
+            time.monotonic() - self._last_warn_time
         )
-
         return max(0.0, remaining)
 
     def announce(self, message=None):
         if not self._enabled:
             return False
 
-        now = time.monotonic()
-
         with self._lock:
+            now = time.monotonic()
+
             if now - self._last_warn_time < self._min_interval:
                 return False
 
             self._last_warn_time = now
             self.warning_count += 1
 
-        payload = message or self._message
-
-        self._queue.put(("say", payload))
-
+        self._queue.put(("say", message or self._message))
         return True
 
     def set_enabled(self, enabled: bool):
@@ -168,15 +193,15 @@ $s.Dispose()
             self.warning_count = 0
 
     def flush(self):
-        time.sleep(0.1)
+        self._queue.join()
 
     def stop(self):
-        self._stop_event.set()
+        if self._worker is None:
+            self._stop_event.set()
+            return
 
-        try:
+        if self._worker.is_alive():
             self._queue.put(None)
-        except Exception:
-            pass
+            self._worker.join(timeout=5.0)
 
-        if self._worker is not None:
-            self._worker.join(timeout=2.0)
+        self._stop_event.set()
